@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>MK SALE SCANNER</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --black: #0A0A0A;
+    --white: #F8F7F5;
+    --accent: #C8A96E;
+    --red: #C0392B;
+    --mid: #6B6B6B;
+    --border: #E0DED9;
+  }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  header {
+    width: 100%;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid #222;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    font-weight: 500;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .subtitle {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--mid);
+    text-transform: uppercase;
+  }
+
+  .main {
+    width: 100%;
+    max-width: 480px;
+    padding: 24px 20px;
+    flex: 1;
+  }
+
+  /* Camera area */
+  .camera-zone {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4/3;
+    background: #111;
+    border: 1px solid #2a2a2a;
+    overflow: hidden;
+    border-radius: 4px;
+    margin-bottom: 16px;
+  }
+
+  #videoEl {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  #canvasEl { display: none; }
+
+  .camera-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--mid);
+  }
+
+  .camera-placeholder svg { opacity: 0.4; }
+
+  .camera-placeholder p {
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-align: center;
+    color: var(--mid);
+  }
+
+  /* Scan overlay */
+  .scan-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .scan-corner {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-color: var(--accent);
+    border-style: solid;
+    border-width: 0;
+  }
+  .scan-corner.tl { top: 20px; left: 20px; border-top-width: 2px; border-left-width: 2px; }
+  .scan-corner.tr { top: 20px; right: 20px; border-top-width: 2px; border-right-width: 2px; }
+  .scan-corner.bl { bottom: 20px; left: 20px; border-bottom-width: 2px; border-left-width: 2px; }
+  .scan-corner.br { bottom: 20px; right: 20px; border-bottom-width: 2px; border-right-width: 2px; }
+
+  .scan-line {
+    position: absolute;
+    left: 20px; right: 20px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: scanline 2s ease-in-out infinite;
+    top: 20px;
+    display: none;
+  }
+
+  @keyframes scanline {
+    0% { top: 20px; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { top: calc(100% - 20px); opacity: 0; }
+  }
+
+  /* Buttons */
+  .btn-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .btn {
+    padding: 14px;
+    border: 1px solid #333;
+    background: transparent;
+    color: var(--white);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 2px;
+    font-family: inherit;
+  }
+
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--black);
+    font-weight: 600;
+    grid-column: 1 / -1;
+  }
+
+  .btn-primary:hover { background: #d4b578; border-color: #d4b578; color: var(--black); }
+
+  .btn-file {
+    grid-column: 1 / -1;
+    border-style: dashed;
+    border-color: #333;
+  }
+
+  /* Manual input */
+  .manual-section {
+    margin-bottom: 16px;
+  }
+
+  .input-label {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--mid);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .text-input {
+    flex: 1;
+    background: #111;
+    border: 1px solid #2a2a2a;
+    color: var(--white);
+    padding: 12px 14px;
+    font-size: 13px;
+    font-family: 'SF Mono', 'Courier New', monospace;
+    letter-spacing: 0.05em;
+    border-radius: 2px;
+    outline: none;
+    text-transform: uppercase;
+  }
+
+  .text-input:focus { border-color: var(--accent); }
+  .text-input::placeholder { color: #444; font-family: 'Helvetica Neue', sans-serif; text-transform: none; letter-spacing: 0; }
+
+  .btn-search {
+    padding: 12px 20px;
+    background: transparent;
+    border: 1px solid #333;
+    color: var(--white);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    border-radius: 2px;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+
+  .btn-search:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Status */
+  .status {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--mid);
+    text-align: center;
+    padding: 8px;
+    min-height: 32px;
+  }
+
+  .status.processing { color: var(--accent); }
+  .status.error { color: #e74c3c; }
+
+  /* Result card */
+  .result-card {
+    display: none;
+    background: var(--white);
+    color: var(--black);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+
+  .result-card.visible { display: block; }
+
+  .result-not-found {
+    padding: 24px;
+    text-align: center;
+  }
+
+  .result-not-found .nf-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+  }
+
+  .result-not-found .nf-title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+    color: var(--black);
+  }
+
+  .result-not-found .nf-sub {
+    font-size: 11px;
+    color: #888;
+    letter-spacing: 0.05em;
+  }
+
+  .result-header {
+    background: var(--black);
+    padding: 20px 24px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .result-item-info {}
+
+  .result-item-type {
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .result-item-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--white);
+    line-height: 1.4;
+    letter-spacing: 0.02em;
+  }
+
+  .result-gender-badge {
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    background: #222;
+    color: var(--mid);
+    padding: 4px 8px;
+    border-radius: 2px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .result-body {
+    padding: 20px 24px;
+  }
+
+  .off-rate-display {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .off-rate-number {
+    font-size: 64px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--black);
+    letter-spacing: -2px;
+  }
+
+  .off-rate-unit {
+    font-size: 24px;
+    font-weight: 400;
+    color: #888;
+    letter-spacing: 0;
+  }
+
+  .off-rate-label {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--mid);
+    text-transform: uppercase;
+    margin-left: 4px;
+    align-self: flex-end;
+    padding-bottom: 6px;
+  }
+
+  .price-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .price-cell {
+    background: var(--white);
+    padding: 14px 16px;
+  }
+
+  .price-cell-label {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--mid);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .price-cell-value {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+  }
+
+  .price-cell-value.original {
+    color: #999;
+    text-decoration: line-through;
+    font-weight: 400;
+    font-size: 15px;
+  }
+
+  .price-cell-value.sale { color: #c0392b; }
+
+  .result-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .meta-tag {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--mid);
+    background: #F0EEE9;
+    padding: 4px 10px;
+    border-radius: 2px;
+  }
+
+  .meta-tag span { color: var(--black); font-weight: 500; }
+
+  /* Multiple results */
+  .multi-results {
+    display: none;
+    margin-top: 8px;
+  }
+
+  .multi-results.visible { display: block; }
+
+  .multi-header {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--mid);
+    text-transform: uppercase;
+    padding: 12px 0 8px;
+    border-bottom: 1px solid #222;
+    margin-bottom: 12px;
+  }
+
+  .multi-item {
+    background: #111;
+    border: 1px solid #1e1e1e;
+    border-radius: 3px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .multi-item:hover { border-color: var(--accent); }
+
+  .multi-item-left { flex: 1; min-width: 0; }
+
+  .multi-item-name {
+    font-size: 12px;
+    color: var(--white);
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .multi-item-meta {
+    font-size: 10px;
+    color: var(--mid);
+    letter-spacing: 0.05em;
+  }
+
+  .multi-item-off {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  /* Divider */
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0;
+  }
+
+  .divider-line { flex: 1; height: 1px; background: #1e1e1e; }
+
+  .divider-text {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: #333;
+    text-transform: uppercase;
+  }
+
+  #fileInput { display: none; }
+
+  .scanning-badge {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.75);
+    color: var(--accent);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    padding: 6px 14px;
+    border-radius: 20px;
+    display: none;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">Maison Kitsuné</div>
+    <div class="subtitle">SALE Scanner SS26</div>
+  </div>
+  <div style="font-size:18px; opacity:0.3;">🦊</div>
+</header>
+
+<div class="main">
+
+  <!-- Camera Zone -->
+  <div class="camera-zone" id="cameraZone">
+    <video id="videoEl" autoplay playsinline muted></video>
+    <canvas id="canvasEl"></canvas>
+
+    <div class="camera-placeholder" id="cameraPlaceholder">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+      <p>タップしてカメラを起動</p>
+    </div>
+
+    <div class="scan-overlay" id="scanOverlay" style="display:none;">
+      <div class="scan-corner tl"></div>
+      <div class="scan-corner tr"></div>
+      <div class="scan-corner bl"></div>
+      <div class="scan-corner br"></div>
+      <div class="scan-line" id="scanLine"></div>
+    </div>
+
+    <div class="scanning-badge" id="scanningBadge">スキャン中…</div>
+  </div>
+
+  <!-- Buttons -->
+  <div class="btn-group">
+    <button class="btn" id="btnStartCamera" onclick="startCamera()">📷 カメラ起動</button>
+    <button class="btn" id="btnCapture" onclick="captureAndScan()" disabled>🔍 タグを読み取る</button>
+    <label class="btn btn-file" for="fileInput">📁 画像ファイルを選択</label>
+    <input type="file" id="fileInput" accept="image/*" onchange="handleFile(event)">
+  </div>
+
+  <!-- Status -->
+  <div class="status" id="statusMsg">カメラでタグを撮影するか、画像を選択してください</div>
+
+  <!-- Result card (single) -->
+  <div class="result-card" id="resultCard"></div>
+
+  <!-- Multiple results -->
+  <div class="multi-results" id="multiResults"></div>
+
+  <!-- Divider -->
+  <div class="divider">
+    <div class="divider-line"></div>
+    <div class="divider-text">手動検索</div>
+    <div class="divider-line"></div>
+  </div>
+
+  <!-- Manual search -->
+  <div class="manual-section">
+    <label class="input-label">品番を直接入力</label>
+    <div class="input-row">
+      <input type="text" class="text-input" id="manualInput" placeholder="例: QM01108WQ4081" maxlength="30"
+        onkeydown="if(event.key==='Enter') manualSearch()">
+      <button class="btn-search" onclick="manualSearch()">検索</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const SALE_DATA = [{"sku":"OM00122KJ0119P199","itemno":"OM00122KJ0119","name":"MAISON KITSUNE EMBROIDERY OVERSIZE TEE-SHIRT","item":"TEE","gender":"M","color":"P199","price":20000,"off_rate":0.3,"sale_price":14000},{"sku":"QM00104KJ70250447","itemno":"QM00104KJ7025","name":"POETIC SCRIPT COMFORT TEE-SHIRT","item":"TEE","gender":"M","color":"0447","price":20000,"off_rate":0.3,"sale_price":14000},{"sku":"QM00104KJ70250453","itemno":"QM00104KJ7025","name":"POETIC SCRIPT COMFORT TEE-SHIRT","item":"TEE","gender":"M","color":"0453","price":20000,"off_rate":0.3,"sale_price":14000},{"sku":"QM00106KJ70410432","itemno":"QM00106KJ7041","name":"HEMP OVERSIZE TEE-SHIRT","item":"TEE","gender":"M","color":"0432","price":27000,"off_rate":0.4,"sale_price":16200},{"sku":"QM00115KJ70260063","itemno":"QM00115KJ7026","name":"MAISON KITSUNÉ STAMP RINGER TEE-SHIRT","item":"TEE","gender":"M","color":"0063","price":19000,"off_rate":0.35,"sale_price":12350},{"sku":"QW00110KJ01190424","itemno":"QW00110KJ0119","name":"ALBUM LOGO COMFORT TEE-SHIRT","item":"TEE","gender":"W","color":"0424","price":22000,"off_rate":0.2,"sale_price":17600},{"sku":"QW00107KJ70260447","itemno":"QW00107KJ7026","name":"POETIC SCRIPT BABY TEE-SHIRT","item":"TEE","gender":"W","color":"0447","price":20000,"off_rate":0.3,"sale_price":14000},{"sku":"QW00103KJ70350436","itemno":"QW00103KJ7035","name":"CONTRASTED RIB FITTED TEE-SHIRT","item":"TEE","gender":"W","color":"0436","price":17000,"off_rate":0.3,"sale_price":11900},{"sku":"QW00115KJ7036P100","itemno":"QW00115KJ7036","name":"SLEEVELESS TEE-SHIRT","item":"TEE","gender":"W","color":"P100","price":15000,"off_rate":0.3,"sale_price":10500},{"sku":"OM00309KM0340P199","itemno":"OM00309KM0340","name":"MAISON KITSUNE LINE HANDWRITING OVERSIZE SWEATSHIRT","item":"SWEAT","gender":"M","color":"P199","price":36000,"off_rate":0.3,"sale_price":25200},{"sku":"MM00315KM03410304","itemno":"MM00315KM0341","name":"MAISON KITSUNÉ HANDWRITING COMFORT SWEATSHIRT","item":"SWEAT","gender":"M","color":"0304","price":32000,"off_rate":0.3,"sale_price":22400},{"sku":"MM00315KM03410453","itemno":"MM00315KM0341","name":"MAISON KITSUNÉ HANDWRITING COMFORT SWEATSHIRT","item":"SWEAT","gender":"M","color":"0453","price":32000,"off_rate":0.3,"sale_price":22400},{"sku":"QM00304KM0340H131","itemno":"QM00304KM0340","name":"MAISON KITSUNÉ STAMP OVERSIZE POLO SWEASHIRT","item":"SWEAT","gender":"M","color":"H131","price":40000,"off_rate":0.35,"sale_price":26000},{"sku":"QM00308KM0341P199","itemno":"QM00308KM0341","name":"HALF-ZIP NYLON POCKET SWEATSHIRT","item":"SWEAT","gender":"M","color":"P199","price":42000,"off_rate":0.35,"sale_price":27300},{"sku":"QM00311KM03410504","itemno":"QM00311KM0341","name":"PLACE DE LA CONCORDE COMFORT SWEATSHIRT","item":"SWEAT","gender":"M","color":"0504","price":38000,"off_rate":0.4,"sale_price":22800},{"sku":"QM00312KM03410519","itemno":"QM00312KM0341","name":"MAISON KITSUNÉ GALLERY FADED RELAXED SWEATSHIRT","item":"SWEAT","gender":"M","color":"0519","price":42000,"off_rate":0.4,"sale_price":25200},{"sku":"QM00704KM03400432","itemno":"QM00704KM0340","name":"GALLERY FOX OVERSIZE HOODIE","item":"SWEAT","gender":"M","color":"0432","price":43000,"off_rate":0.4,"sale_price":25800},{"sku":"QM00700KM0341P199","itemno":"QM00700KM0341","name":"MAISON KITSUNÉ PARIS COMFORT HOODIE","item":"SWEAT","gender":"M","color":"P199","price":37000,"off_rate":0.35,"sale_price":24050},{"sku":"QW00301KM03420450","itemno":"QW00301KM0342","name":"FLORAL LIGHT RELAXED SWEATSHIRT","item":"SWEAT","gender":"W","color":"0450","price":38000,"off_rate":0.4,"sale_price":22800},{"sku":"MW00304KM03410063","itemno":"MW00304KM0341","name":"BABY FOX HALF ZIP SWEATSHIRT","item":"SWEAT","gender":"W","color":"0063","price":37000,"off_rate":0.3,"sale_price":25900},{"sku":"MW00304KM03410423","itemno":"MW00304KM0341","name":"BABY FOX HALF ZIP SWEATSHIRT","item":"SWEAT","gender":"W","color":"0423","price":37000,"off_rate":0.3,"sale_price":25900},{"sku":"OW00301KM03410448","itemno":"OW00301KM0341","name":"BABY FOX OVERSIZE SWEATSHIRT","item":"SWEAT","gender":"W","color":"0448","price":37000,"off_rate":0.3,"sale_price":25900},{"sku":"QW00303KM03420304","itemno":"QW00303KM0342","name":"BABY FOX OPEN POCKET SWEATSHIRT","item":"SWEAT","gender":"W","color":"0304","price":37000,"off_rate":0.3,"sale_price":25900},{"sku":"QW00303KM03420423","itemno":"QW00303KM0342","name":"BABY FOX OPEN POCKET SWEATSHIRT","item":"SWEAT","gender":"W","color":"0423","price":37000,"off_rate":0.3,"sale_price":25900},{"sku":"QW00302KM03420507","itemno":"QW00302KM0342","name":"MAISON KITSUNÉ STAMP POLO SWEATSHIRT","item":"SWEAT","gender":"W","color":"0507","price":38000,"off_rate":0.35,"sale_price":24700},{"sku":"QW00304KM03420503","itemno":"QW00304KM0342","name":"GALLERY FOX LIGHT RELAXED SWEATSHIRT","item":"SWEAT","gender":"W","color":"0503","price":38000,"off_rate":0.4,"sale_price":22800},{"sku":"QW00309KM03410519","itemno":"QW00309KM0341","name":"MAISON KITSUNÉ GALLERY FADED RELAXED SWEATSHIRT","item":"SWEAT","gender":"W","color":"0519","price":38000,"off_rate":0.3,"sale_price":26600},{"sku":"QW00700KM03410504","itemno":"QW00700KM0341","name":"ALBUM LOGO COMFORT HOODIE","item":"SWEAT","gender":"W","color":"0504","price":40000,"off_rate":0.4,"sale_price":24000},{"sku":"PM00801KT11810429","itemno":"PM00801KT1181","name":"FOX HEAD MERINO REGULAR JUMPER","item":"KNIT","gender":"M","color":"0429","price":42000,"off_rate":0.3,"sale_price":29400},{"sku":"PM00501KT11810429","itemno":"PM00501KT1181","name":"FOX HEAD MERINO REGULAR CARDIGAN","item":"KNIT","gender":"M","color":"0429","price":45000,"off_rate":0.2,"sale_price":36000},{"sku":"QM00501KT11910429","itemno":"QM00501KT1191","name":"TEXTURED MERINO COTTON CARDIGAN","item":"KNIT","gender":"M","color":"0429","price":58000,"off_rate":0.4,"sale_price":34800},{"sku":"QM00501KT11910447","itemno":"QM00501KT1191","name":"TEXTURED MERINO COTTON CARDIGAN","item":"KNIT","gender":"M","color":"0447","price":58000,"off_rate":0.4,"sale_price":34800},{"sku":"QM00202KT11890413","itemno":"QM00202KT1189","name":"FOX HEAD COTTON RIBBED POLO JUMPER","item":"KNIT","gender":"M","color":"0413","price":58000,"off_rate":0.35,"sale_price":37700},{"sku":"QM00202KT11890431","itemno":"QM00202KT1189","name":"FOX HEAD COTTON RIBBED POLO JUMPER","item":"KNIT","gender":"M","color":"0431","price":58000,"off_rate":0.35,"sale_price":37700},{"sku":"QM00503KT11890413","itemno":"QM00503KT1189","name":"FOX HEAD COTTON RIBBED CARDIGAN","item":"KNIT","gender":"M","color":"0413","price":63000,"off_rate":0.4,"sale_price":37800},{"sku":"QM00503KT11890431","itemno":"QM00503KT1189","name":"FOX HEAD COTTON RIBBED CARDIGAN","item":"KNIT","gender":"M","color":"0431","price":63000,"off_rate":0.4,"sale_price":37800},{"sku":"QM00806KT11890136","itemno":"QM00806KT1189","name":"FOX HEAD COTTON RIBBED JUMPER","item":"KNIT","gender":"M","color":"0136","price":53000,"off_rate":0.3,"sale_price":37100},{"sku":"QM00806KT11890413","itemno":"QM00806KT1189","name":"FOX HEAD COTTON RIBBED JUMPER","item":"KNIT","gender":"M","color":"0413","price":53000,"off_rate":0.3,"sale_price":37100},{"sku":"QM02153KT11990079","itemno":"QM02153KT1199","name":"ART NOUVEAU STAMPS KNITTED BLOUSON","item":"KNIT","gender":"M","color":"0079","price":65000,"off_rate":0.3,"sale_price":45500},{"sku":"QM02153KT11990383","itemno":"QM02153KT1199","name":"ART NOUVEAU STAMPS KNITTED BLOUSON","item":"KNIT","gender":"M","color":"0383","price":65000,"off_rate":0.3,"sale_price":45500},{"sku":"MW00507KT10360134","itemno":"MW00507KT1036","name":"BABY FOX PATCH REGULAR CARDIGAN","item":"KNIT","gender":"W","color":"0134","price":50000,"off_rate":0.2,"sale_price":40000},{"sku":"MW00816KT10360134","itemno":"MW00816KT1036","name":"BABY FOX PATCH REGULAR JUMPER","item":"KNIT","gender":"W","color":"0134","price":45000,"off_rate":0.3,"sale_price":31500},{"sku":"QW00500KT11920413","itemno":"QW00500KT1192","name":"SILK BLEND SHORT CARDIGAN","item":"KNIT","gender":"W","color":"0413","price":48000,"off_rate":0.35,"sale_price":31200},{"sku":"QW00500KT11920446","itemno":"QW00500KT1192","name":"SILK BLEND SHORT CARDIGAN","item":"KNIT","gender":"W","color":"0446","price":48000,"off_rate":0.35,"sale_price":31200},{"sku":"QW00203KT11920413","itemno":"QW00203KT1192","name":"SILK BLEND POLO","item":"KNIT","gender":"W","color":"0413","price":42000,"off_rate":0.35,"sale_price":27300},{"sku":"QW00203KT11920446","itemno":"QW00203KT1192","name":"SILK BLEND POLO","item":"KNIT","gender":"W","color":"0446","price":42000,"off_rate":0.35,"sale_price":27300},{"sku":"QW00504KT12010383","itemno":"QW00504KT1201","name":"CABLE KNIT CARDIGAN","item":"KNIT","gender":"W","color":"0383","price":53000,"off_rate":0.4,"sale_price":31800},{"sku":"QW00608KT12010383","itemno":"QW00608KT1201","name":"CABLE KNIT VEST","item":"KNIT","gender":"W","color":"0383","price":36000,"off_rate":0.4,"sale_price":21600},{"sku":"MM00411WC2046S481","itemno":"MM00411WC2046","name":"FOX HEAD CLASSIC STRIPED SHIRT","item":"SHIRT","gender":"M","color":"S481","price":35000,"off_rate":0.3,"sale_price":24500},{"sku":"QW02103WD40280488","itemno":"QW02103WD4028","name":"DENIM BOYFRIEND SHIRT","item":"SHIRT","gender":"W","color":"0488","price":45000,"off_rate":0.35,"sale_price":29250},{"sku":"QW02107WF4066P204","itemno":"QW02107WF4066","name":"LIGHT TEXTURED OVERSHIRT","item":"SHIRT","gender":"W","color":"P204","price":46000,"off_rate":0.35,"sale_price":29900},{"sku":"QW00404WC50940494","itemno":"QW00404WC5094","name":"STRIPED DOUBLE POCKET SHIRT","item":"SHIRT","gender":"W","color":"0494","price":40000,"off_rate":0.3,"sale_price":28000},{"sku":"QM01103WD4023P471","itemno":"QM01103WD4023","name":"TAPERED JEANS","item":"PANTS","gender":"M","color":"P471","price":36000,"off_rate":0.3,"sale_price":25200},{"sku":"QM01105WT30310413","itemno":"QM01105WT3031","name":"CROPPED PLEATED PANTS","item":"PANTS","gender":"M","color":"0413","price":45000,"off_rate":0.3,"sale_price":31500},{"sku":"QW01109WD4023P471","itemno":"QW01109WD4023","name":"TAPERED JEANS","item":"PANTS","gender":"W","color":"P471","price":37000,"off_rate":0.3,"sale_price":25900},{"sku":"QW01107WT30310413","itemno":"QW01107WT3031","name":"CARROT PLEATED PANTS","item":"PANTS","gender":"W","color":"0413","price":37000,"off_rate":0.35,"sale_price":24050},{"sku":"QW01501WD4023P471","itemno":"QW01501WD4023","name":"DENIM MINI SKIRT","item":"SKIRT","gender":"W","color":"P471","price":33000,"off_rate":0.4,"sale_price":19800},{"sku":"QW01503WF4069P199","itemno":"QW01503WF4069","name":"MIDI PLEATED SKIRT","item":"SKIRT","gender":"W","color":"P199","price":42000,"off_rate":0.4,"sale_price":25200},{"sku":"QM03600KA00410511","itemno":"QM03600KA0041","name":"MAISON KITSUNÉ PARIS BOXER PACK","item":"SHORTS","gender":"M","color":"0511","price":16500,"off_rate":0.3,"sale_price":11550},{"sku":"QM02107WW90670437","itemno":"QM02107WW9067","name":"QUILTED VEST","item":"JACKET","gender":"M","color":"0437","price":45000,"off_rate":0.4,"sale_price":27000},{"sku":"QM02107WW9067P199","itemno":"QM02107WW9067","name":"QUILTED VEST","item":"JACKET","gender":"M","color":"P199","price":45000,"off_rate":0.4,"sale_price":27000},{"sku":"QM02203WW90670437","itemno":"QM02203WW9067","name":"QUILTED JACKET","item":"JACKET","gender":"M","color":"0437","price":63000,"off_rate":0.35,"sale_price":40950},{"sku":"QM02206WQ40790453","itemno":"QM02206WQ4079","name":"BOMBER JACKET","item":"JACKET","gender":"M","color":"0453","price":72000,"off_rate":0.35,"sale_price":46800},{"sku":"PW02142WW0081P470","itemno":"PW02142WW0081","name":"DENIM CROPPED JACKET","item":"JACKET","gender":"W","color":"P470","price":65000,"off_rate":0.3,"sale_price":45500},{"sku":"QW02104WD4023P471","itemno":"QW02104WD4023","name":"DENIM CROPPED JACKET","item":"JACKET","gender":"W","color":"P471","price":58000,"off_rate":0.3,"sale_price":40600},{"sku":"QW02151KT11880413","itemno":"QW02151KT1188","name":"MILANO CITY JACKET","item":"JACKET","gender":"W","color":"0413","price":65000,"off_rate":0.35,"sale_price":42250},{"sku":"QM02105WW91040413","itemno":"QM02105WW9104","name":"LIGHT TEDDY BLOUSON","item":"BLUSON/COAT","gender":"M","color":"0413","price":75000,"off_rate":0.3,"sale_price":52500},{"sku":"QM02205WQ40840158","itemno":"QM02205WQ4084","name":"CAR COAT","item":"BLUSON/COAT","gender":"M","color":"0158","price":86000,"off_rate":0.35,"sale_price":55900},{"sku":"QW02204WQ40780432","itemno":"QW02204WQ4078","name":"TRENCH COAT","item":"BLUSON/COAT","gender":"W","color":"0432","price":75000,"off_rate":0.35,"sale_price":48750},{"sku":"QU05119WW9042P471","itemno":"QU05119WW9042","name":"POETIC SCRIPT DENIM TOTE","item":"BAG","gender":"U","color":"P471","price":12000,"off_rate":0.3,"sale_price":8400},{"sku":"QU05105WB00500425","itemno":"QU05105WB0050","name":"MAISON KITSUNE HANDWRITING XL TOTE","item":"BAG","gender":"U","color":"0425","price":32000,"off_rate":0.35,"sale_price":20800},{"sku":"OW05110LC0045P280","itemno":"OW05110LC0045","name":"FOX HEAD LEATHER MEDIUM TOTE","item":"BAG","gender":"W","color":"P280","price":72500,"off_rate":0.3,"sale_price":50750},{"sku":"OW05116LC0045P280","itemno":"OW05116LC0045","name":"FOX HEAD LEATHER MINI TOTE","item":"BAG","gender":"W","color":"P280","price":54000,"off_rate":0.3,"sale_price":37800},{"sku":"PW05141LR00520323","itemno":"PW05141LR0052","name":"CASEY BAG","item":"BAG","gender":"W","color":"0323","price":77000,"off_rate":0.3,"sale_price":53900},{"sku":"PW05141LR0052P199","itemno":"PW05141LR0052","name":"CASEY BAG","item":"BAG","gender":"W","color":"P199","price":77000,"off_rate":0.3,"sale_price":53900},{"sku":"MM04803LR00600371","itemno":"MM04803LR0060","name":"SORA RUNNERS","item":"SHOES","gender":"M","color":"0371","price":46000,"off_rate":0.3,"sale_price":32200},{"sku":"MM04803O00260280","itemno":"MM04803O0026","name":"SORA RUNNERS","item":"SHOES","gender":"M","color":"0280","price":46000,"off_rate":0.3,"sale_price":32200},{"sku":"MM04804LR00360279","itemno":"MM04804LR0036","name":"CHIRU TRAINERS","item":"SHOES","gender":"M","color":"0279","price":46000,"off_rate":0.3,"sale_price":32200},{"sku":"AULMMK010406","itemno":"AULMMK01","name":"MAISON KITSUNÉ x AUTRY MEDALIST SNEAKERS","item":"SHOES","gender":"U","color":"0406","price":43800,"off_rate":0.3,"sale_price":30660},{"sku":"AULMMK020407","itemno":"AULMMK02","name":"MAISON KITSUNE x AUTRY MEDALIST SNEAKERS","item":"SHOES","gender":"U","color":"0407","price":43800,"off_rate":0.3,"sale_price":30660},{"sku":"AULWMK010406","itemno":"AULWMK01","name":"MAISON KITSUNÉ x AUTRY MEDALIST SNEAKERS","item":"SHOES","gender":"U","color":"0406","price":43800,"off_rate":0.3,"sale_price":30660},{"sku":"AULWMK020407","itemno":"AULWMK02","name":"MAISON KITSUNÉ x AUTRY MEDALIST SNEAKERS","item":"SHOES","gender":"U","color":"0407","price":43800,"off_rate":0.3,"sale_price":30660},{"sku":"MW04803O00260280","itemno":"MW04803O0026","name":"SORA RUNNERS","item":"SHOES","gender":"W","color":"0280","price":46000,"off_rate":0.3,"sale_price":32200},{"sku":"MW04804LR00360279","itemno":"MW04804LR0036","name":"CHIRU TRAINERS","item":"SHOES","gender":"W","color":"0279","price":46000,"off_rate":0.3,"sale_price":32200},{"sku":"QM00430WC50960492","itemno":"QM00430WC5096","name":"STRIPED OVERSIZE SHIRT","item":"SHIRT","gender":"M","color":"0492","price":40000,"off_rate":0.35,"sale_price":26000},{"sku":"OU05104WB00300270","itemno":"OU05104WB0030","name":"CAFE KITSUNE CHECKERBOARD MAXI TOTE BAG","item":"CAFÉ","gender":"U","color":"0270","price":20000,"off_rate":0.3,"sale_price":14000},{"sku":"OU05301WB00300270","itemno":"OU05301WB0030","name":"CAFE KITSUNE CHECKERBOARD PASSEPORT HOLDER","item":"CAFÉ","gender":"U","color":"0270","price":12000,"off_rate":0.3,"sale_price":8400},{"sku":"OU05302LC00500270","itemno":"OU05302LC0050","name":"CAFE KITSUNE CHECKERBOARD NAME TAG","item":"CAFÉ","gender":"U","color":"0270","price":9500,"off_rate":0.3,"sale_price":6650},{"sku":"OU08301O00120284","itemno":"OU08301O0012","name":"CAFE KITSUNE SET OF COLORING AND DRAWING BOOKS","item":"CAFÉ","gender":"U","color":"0284","price":6500,"off_rate":0.3,"sale_price":4550},{"sku":"OU08401O00030212","itemno":"OU08401O0003","name":"GREEN GARDEN CANDLE","item":"CAFÉ","gender":"U","color":"0212","price":8500,"off_rate":0.3,"sale_price":5950},{"sku":"OU08501AA10070214","itemno":"OU08501AA1007","name":"CAFE KITSUNE NOMAD BACKGAMMON GAME","item":"CAFÉ","gender":"U","color":"0214","price":13500,"off_rate":0.4,"sale_price":8100},{"sku":"PU00105KJ70140079","itemno":"PU00105KJ7014","name":"CAFE KITSUNE RELAX TEE-SHIRT","item":"CAFÉ","gender":"U","color":"0079","price":11000,"off_rate":0.3,"sale_price":7700},{"sku":"PU00301KM03300079","itemno":"PU00301KM0330","name":"CAFE KITSUNE RELAX SWEATSHIRT","item":"CAFÉ","gender":"U","color":"0079","price":22000,"off_rate":0.3,"sale_price":15400},{"sku":"PU08102O00100386","itemno":"PU08102O0010","name":"CHECKERBOARD PORCELAIN DESERT PLATE","item":"CAFÉ","gender":"U","color":"0386","price":5000,"off_rate":0.3,"sale_price":3500},{"sku":"PU08103O00100386","itemno":"PU08103O0010","name":"CHECKERBOARD PORCELAIN CAPPUCCINO CUP AND SAUCER","item":"CAFÉ","gender":"U","color":"0386","price":7200,"off_rate":0.3,"sale_price":5040},{"sku":"PU08104O00100386","itemno":"PU08104O0010","name":"CHECKERBOARD PORCELAIN EGG CUP","item":"CAFÉ","gender":"U","color":"0386","price":5000,"off_rate":0.3,"sale_price":3500},{"sku":"PU08107O0007P306","itemno":"PU08107O0007","name":"BARISTA FOX TRAY","item":"CAFÉ","gender":"U","color":"P306","price":5400,"off_rate":0.3,"sale_price":3780},{"sku":"PU08110O0010B716","itemno":"PU08110O0010","name":"CHECKERBOARD PORCELAIN MILK JUG","item":"CAFÉ","gender":"U","color":"B716","price":5700,"off_rate":0.3,"sale_price":3990},{"sku":"PU08111O00100386","itemno":"PU08111O0010","name":"CHECKERBOARD PORCELAIN CUP AND SAUCER","item":"CAFÉ","gender":"U","color":"0386","price":6800,"off_rate":0.3,"sale_price":4760},{"sku":"QU01103KJ7014P199","itemno":"QU01103KJ7014","name":"LUNAR YEAR RELAX TEE-SHIRT","item":"CAFÉ","gender":"U","color":"P199","price":13000,"off_rate":0.3,"sale_price":9100},{"sku":"QU05115WB0013P700","itemno":"QU05115WB0013","name":"SAKURA MINI TOTE","item":"CAFÉ","gender":"U","color":"P700","price":6800,"off_rate":0.2,"sale_price":5440},{"sku":"QU08114O00170008","itemno":"QU08114O0017","name":"SAKURA TUMBLER","item":"CAFÉ","gender":"U","color":"0008","price":7200,"off_rate":0.2,"sale_price":5760},{"sku":"QU08501OF0012P708","itemno":"QU08501OF0012","name":"VIOLETTE-STYRAX SCENTED CANDLE","item":"CAFÉ","gender":"U","color":"P708","price":9000,"off_rate":0.3,"sale_price":6300},{"sku":"PM00107KJ7026P399","itemno":"PM00107KJ7026","name":"FOX HEAD REGULAR TEE-SHIRT","item":"TEE","gender":"M","color":"P399","price":17000,"off_rate":0.2,"sale_price":13600},{"sku":"QM010CLKJ01190063","itemno":"QM010CLKJ0119","name":"LUNAR NEW YEAR OVERSIZE TEE-SHIRT","item":"TEE","gender":"M","color":"0063","price":25000,"off_rate":0.3,"sale_price":17500},{"sku":"SP618NM00101KJ0136P205","itemno":"SP618NM00101KJ0136","name":"6-18 MAISON KITSUNE BEACH CLUB OVERSIZED TEE-SHIRT","item":"TEE","gender":"M","color":"P205","price":23000,"off_rate":0.35,"sale_price":14950},{"sku":"PM00126KJ70160566","itemno":"PM00126KJ7016","name":"BOLD FOX OVERSIZE TEE-SHIRT","item":"TEE","gender":"M","color":"0566","price":20000,"off_rate":0.2,"sale_price":16000},{"sku":"PM00128KJ7016P205","itemno":"PM00128KJ7016","name":"OLYMPIA LE TAN OVERSIZE TEE-SHIRT","item":"TEE","gender":"M","color":"P205","price":20000,"off_rate":0.2,"sale_price":16000},{"sku":"KMM33520P220","itemno":"KMM33520","name":"RUE DE RICHELIEU LS TEE","item":"TEE","gender":"M","color":"P220","price":14000,"off_rate":0.2,"sale_price":11200},{"sku":"KMM33520P702","itemno":"KMM33520","name":"RUE DE RICHELIEU LS TEE","item":"TEE","gender":"M","color":"P702","price":14000,"off_rate":0.2,"sale_price":11200},{"sku":"KMM33750P320","itemno":"KMM33750","name":"CAMP MULTI PRINT LS TEE","item":"TEE","gender":"M","color":"P320","price":18000,"off_rate":0.3,"sale_price":12600},{"sku":"KMM33750P410","itemno":"KMM33750","name":"CAMP MULTI PRINT LS TEE","item":"TEE","gender":"M","color":"P410","price":18000,"off_rate":0.3,"sale_price":12600},{"sku":"LM00105KJ0044S480","itemno":"LM00105KJ0044","name":"FOX HEAD PATCH REGULAR MARIN TEE SHIRT","item":"TEE","gender":"M","color":"S480","price":28000,"off_rate":0.3,"sale_price":19600},{"sku":"PM00123KJ70260302","itemno":"PM00123KJ7026","name":"STANDING FOX COMFORT TEE-SHIRT","item":"TEE","gender":"M","color":"0302","price":18500,"off_rate":0.2,"sale_price":14800},{"sku":"PM00123KJ70260331","itemno":"PM00123KJ7026","name":"STANDING FOX COMFORT TEE-SHIRT","item":"TEE","gender":"M","color":"0331","price":18500,"off_rate":0.2,"sale_price":14800},{"sku":"PM00108KJ7025P129","itemno":"PM00108KJ7025","name":"FOX HEAD COMFORT TEE-SHIRT","item":"TEE","gender":"M","color":"P129","price":18500,"off_rate":0.2,"sale_price":14800},{"sku":"PM00107KJ7026P180","itemno":"PM00107KJ7026","name":"FOX HEAD REGULAR TEE-SHIRT","item":"TEE","gender":"M","color":"P180","price":17000,"off_rate":0.2,"sale_price":13600},{"sku":"MM00126KJ7025P131","itemno":"MM00126KJ7025","name":"MAISON KITSUNE HANDWRITING COMFORT TEE-SHIRT","item":"TEE","gender":"M","color":"P131","price":18500,"off_rate":0.3,"sale_price":12950},{"sku":"QW00602KJ7037P199","itemno":"QW00602KJ7037","name":"SHORT SLEEVE STRETCH TOP","item":"TEE","gender":"W","color":"P199","price":22000,"off_rate":0.35,"sale_price":14300},{"sku":"QW010CLKJ01190063","itemno":"QW010CLKJ0119","name":"LUNAR NEW YEAR COMFORT TEE-SHIRT","item":"TEE","gender":"W","color":"0063","price":24000,"off_rate":0.3,"sale_price":16800},{"sku":"SP618NW00101KJ0136P616","itemno":"SP618NW00101KJ0136","name":"6-18 MAISON KITSUNE BEACH CLUB RELAXED TEE-SHIRT","item":"TEE","gender":"W","color":"P616","price":22000,"off_rate":0.35,"sale_price":14300},{"sku":"SPBLMW00117KJ01360002","itemno":"SPBLMW00117KJ0136","name":"\u201cSUNSET ISLAND\u201d REGULARTEE-SHIRT","item":"TEE","gender":"W","color":"0002","price":19000,"off_rate":0.4,"sale_price":11400},{"sku":"SPBLMW00117KJ0136P634","itemno":"SPBLMW00117KJ0136","name":"\u201cSUNSET ISLAND\u201d REGULARTEE-SHIRT","item":"TEE","gender":"W","color":"P634","price":19000,"off_rate":0.4,"sale_price":11400},{"sku":"SPBLMW00118KJ0136P100","itemno":"SPBLMW00118KJ0136","name":"\u201cPALM BEACH\u201d REGULAR TEE-SHIRT","item":"TEE","gender":"W","color":"P100","price":19000,"off_rate":0.4,"sale_price":11400},{"sku":"SPBLMW00118KJ0136P604","itemno":"SPBLMW00118KJ0136","name":"\u201cPALM BEACH\u201d REGULAR TEE-SHIRT","item":"TEE","gender":"W","color":"P604","price":19000,"off_rate":0.4,"sale_price":11400},{"sku":"SPBLMW00415WA00250003","itemno":"SPBLMW00415WA0025","name":"\u201cTROPICAL PALM\u201d STRAP TOP","item":"TEE","gender":"W","color":"0003","price":30000,"off_rate":0.4,"sale_price":18000},{"sku":"PW00125KJ7016P205","itemno":"PW00125KJ7016","name":"OLYMPIA LE TAN COMFORT TEE-SHIRT","item":"TEE","gender":"W","color":"P205","price":18500,"off_rate":0.2,"sale_price":14800},{"sku":"OW00110KJ00080243","itemno":"OW00110KJ0008","name":"BOLD FOX HEAD PATCH MULTI STRIPES BABY TEE-SHIRT","item":"TEE","gender":"W","color":"0243","price":20000,"off_rate":0.3,"sale_price":14000},{"sku":"PW00619KJ70330392","itemno":"PW00619KJ7033","name":"BABY FOX STRIPED TANK TOP","item":"TEE","gender":"W","color":"0392","price":16000,"off_rate":0.3,"sale_price":11200},{"sku":"PW00109KJ70260413","itemno":"PW00109KJ7026","name":"LADY FOX BABY TEE-SHIRT","item":"TEE","gender":"W","color":"0413","price":19000,"off_rate":0.2,"sale_price":15200},{"sku":"PW00122KJ70260303","itemno":"PW00122KJ7026","name":"LADY FOX REGULAR TEE-SHIRT","item":"TEE","gender":"W","color":"0303","price":17000,"off_rate":0.2,"sale_price":13600},{"sku":"PW00114KJ01190306","itemno":"PW00114KJ0119","name":"MAISON KITSUNE HANDWRITING COMFORT TEE-SHIRT","item":"TEE","gender":"W","color":"0306","price":18000,"off_rate":0.3,"sale_price":12600},{"sku":"PW00203KP0001P199","itemno":"PW00203KP0001","name":"BABY FOX OVERSIZE POLO","item":"TEE","gender":"W","color":"P199","price":24000,"off_rate":0.3,"sale_price":16800},{"sku":"PM00209KP0002P399","itemno":"PM00209KP0002","name":"FOX HEAD REGULAR POLO","item":"POLO","gender":"M","color":"P399","price":20000,"off_rate":0.3,"sale_price":14000},{"sku":"PM00203KJ70250303","itemno":"PM00203KJ7025","name":"PROFILE FOX COMFORT POLO","item":"POLO","gender":"M","color":"0303","price":25000,"off_rate":0.3,"sale_price":17500},{"sku":"PM00209KP0002P131","itemno":"PM00209KP0002","name":"FOX HEAD REGULAR POLO","item":"POLO","gender":"M","color":"P131","price":20000,"off_rate":0.3,"sale_price":14000},{"sku":"PM00209KP0002P180","itemno":"PM00209KP0002","name":"FOX HEAD REGULAR POLO","item":"POLO","gender":"M","color":"P180","price":20000,"off_rate":0.3,"sale_price":14000},{"sku":"PM00210KP0001P129","itemno":"PM00210KP0001","name":"FOX HEAD COMFORT POLO","item":"POLO","gender":"M","color":"P129","price":22000,"off_rate":0.3,"sale_price":15400},{"sku":"QM070CLKM03410063","itemno":"QM070CLKM0341","name":"LUNAR NEW YEAR COMFORT HOODIE","item":"SWEAT","gender":"M","color":"0063","price":44000,"off_rate":0.4,"sale_price":26400},{"sku":"KMM33530P195","itemno":"KMM33530","name":"RUE DE RICHELIEU SWEATSHIRT","item":"SWEAT","gender":"M","color":"P195","price":24000,"off_rate":0.3,"sale_price":16800},{"sku":"KMM33530P199","itemno":"KMM33530","name":"RUE DE RICHELIEU SWEATSHIRT","item":"SWEAT","gender":"M","color":"P199","price":24000,"off_rate":0.3,"sale_price":16800},{"sku":"KMM33530P395","itemno":"KMM33530","name":"RUE DE RICHELIEU SWEATSHIRT","item":"SWEAT","gender":"M","color":"P395","price":24000,"off_rate":0.3,"sale_price":16800},{"sku":"KMM34510P120","itemno":"KMM34510","name":"rue de richelieu sweatshirt","item":"SWEAT","gender":"M","color":"P120","price":27000,"off_rate":0.3,"sale_price":18900},{"sku":"KMM34510P198","itemno":"KMM34510","name":"rue de richelieu sweatshirt","item":"SWEAT","gender":"M","color":"P198","price":27000,"off_rate":0.3,"sale_price":18900},{"sku":"PM00303KM0340P399","itemno":"PM00303KM0340","name":"FOX HEAD REGULAR SWEATSHIRT","item":"SWEAT","gender":"M","color":"P399","price":28000,"off_rate":0.3,"sale_price":19600},{"sku":"LM00702KM0001P199","itemno":"LM00702KM0001","name":"FOX HEAD PATCH REGULAR HOODIE","item":"SWEAT","gender":"M","color":"P199","price":33000,"off_rate":0.2,"sale_price":26400},{"sku":"MW00304KM0325P199","itemno":"MW00304KM0325","name":"BABY FOX PATCH HALF ZIP SWEATSHIRT","item":"SWEAT","gender":"W","color":"P199","price":38000,"off_rate":0.3,"sale_price":26600},{"sku":"QM050CLKT10060432","itemno":"QM050CLKT1006","name":"LUNAR NEW YEAR LAMBSWOOL CARDIGAN","item":"KNIT","gender":"M","color":"0432","price":45000,"off_rate":0.4,"sale_price":27000},{"sku":"OM051CCKT10060134","itemno":"OM051CCKT1006","name":"CNY BOLD FOX HEAD REGULAR CARDIGAN","item":"KNIT","gender":"M","color":"0134","price":45000,"off_rate":0.4,"sale_price":27000},{"sku":"OM051CCKT10060289","itemno":"OM051CCKT1006","name":"CNY BOLD FOX HEAD REGULAR CARDIGAN","item":"KNIT","gender":"M","color":"0289","price":45000,"off_rate":0.4,"sale_price":27000},{"sku":"PM00513KT1036P395","itemno":"PM00513KT1036","name":"FOX HEAD MERINO REGULAR CARDIGAN","item":"KNIT","gender":"M","color":"P395","price":45000,"off_rate":0.2,"sale_price":36000},{"sku":"QW050CLKT10060383","itemno":"QW050CLKT1006","name":"LUNAR NEW YEAR LAMBSWOOL FITTED CARDIGAN","item":"KNIT","gender":"W","color":"0383","price":45000,"off_rate":0.4,"sale_price":27000},{"sku":"QW080CLKT10060383","itemno":"QW080CLKT1006","name":"LUNAR NEW YEAR LAMBSWOOL  JUMPER","item":"KNIT","gender":"W","color":"0383","price":42000,"off_rate":0.4,"sale_price":25200},{"sku":"PW00819KT10060523","itemno":"PW00819KT1006","name":"BABY FOX LAMBSWOOL REGULAR JUMPER","item":"KNIT","gender":"W","color":"0523","price":42000,"off_rate":0.2,"sale_price":33600},{"sku":"PW00822KT1036P470","itemno":"PW00822KT1036","name":"BABY FOX PATCH REGULAR JUMPER","item":"KNIT","gender":"W","color":"P470","price":41000,"off_rate":0.2,"sale_price":32800},{"sku":"SPBLMM00416WW90080004","itemno":"SPBLMM00416WW9008","name":"\u201cTROPICAL PALM\u201d RELAXED SHIRT","item":"SHIRT","gender":"M","color":"0004","price":35000,"off_rate":0.4,"sale_price":21000},{"sku":"SPBLMM00416WW9008P100","itemno":"SPBLMM00416WW9008","name":"\u201cTROPICAL PALM\u201d RELAXED SHIRT","item":"SHIRT","gender":"M","color":"P100","price":35000,"off_rate":0.4,"sale_price":21000},{"sku":"SPBLMW00413WW90080004","itemno":"SPBLMW00413WW9008","name":"\u201cTROPICAL PALM\u201d CLASSIC SHIRT","item":"SHIRT","gender":"W","color":"0004","price":35000,"off_rate":0.4,"sale_price":21000},{"sku":"SPBLMW00413WW9008P100","itemno":"SPBLMW00413WW9008","name":"\u201cTROPICAL PALM\u201d CLASSIC SHIRT","item":"SHIRT","gender":"W","color":"P100","price":35000,"off_rate":0.4,"sale_price":21000},{"sku":"SPBLMM01407WC50200001","itemno":"SPBLMM01407WC5020","name":"\u201cTROPICAL PALM\u201d CASUAL BOARD SHORT","item":"PANTS","gender":"M","color":"0001","price":35000,"off_rate":0.4,"sale_price":21000},{"sku":"KMS33500P195","itemno":"KMS33500","name":"RUE DE RICHELIEU JOG PANTS","item":"PANTS","gender":"M","color":"P195","price":22000,"off_rate":0.3,"sale_price":15400},{"sku":"KMS33500P199","itemno":"KMS33500","name":"RUE DE RICHELIEU JOG PANTS","item":"PANTS","gender":"M","color":"P199","price":22000,"off_rate":0.3,"sale_price":15400},{"sku":"KMS33500P395","itemno":"KMS33500","name":"RUE DE RICHELIEU JOG PANTS","item":"PANTS","gender":"M","color":"P395","price":22000,"off_rate":0.3,"sale_price":15400},{"sku":"KMS34500P120","itemno":"KMS34500","name":"rue de richelieu jog pants","item":"PANTS","gender":"M","color":"P120","price":25000,"off_rate":0.3,"sale_price":17500},{"sku":"KMS34500P198","itemno":"KMS34500","name":"rue de richelieu jog pants","item":"PANTS","gender":"M","color":"P198","price":25000,"off_rate":0.3,"sale_price":17500},{"sku":"SPBLMW01511WA00250003","itemno":"SPBLMW01511WA0025","name":"\u201cTROPICAL PALM\u201d BIAS SKIRT","item":"SKIRT","gender":"W","color":"0003","price":43000,"off_rate":0.4,"sale_price":25800},{"sku":"SPBLMW01604WA00250003","itemno":"SPBLMW01604WA0025","name":"\u201cTROPICAL PALM\u201d STRAP DRESS","item":"DRESS","gender":"W","color":"0003","price":53000,"off_rate":0.4,"sale_price":31800},{"sku":"QM210CLWM20330432","itemno":"QM210CLWM2033","name":"LUNAR NEW YEAR TEDDY","item":"JACKET","gender":"M","color":"0432","price":109000,"off_rate":0.4,"sale_price":65400},{"sku":"KML33520P359","itemno":"KML33520","name":"FW23 CAMP PARKA","item":"BLUSON/COAT","gender":"M","color":"P359","price":63000,"off_rate":0.4,"sale_price":37800},{"sku":"MM06104WW00960330","itemno":"MM06104WW0096","name":"BOLD FOX HEAD 6P CAP","item":"CAP/HAT","gender":"M","color":"0330","price":16000,"off_rate":0.3,"sale_price":11200},{"sku":"PW06100WB00260413","itemno":"PW06100WB0026","name":"DRESSED FOX CAP","item":"CAP/HAT","gender":"W","color":"0413","price":16000,"off_rate":0.3,"sale_price":11200},{"sku":"QU510CLWW9042P700","itemno":"QU510CLWW9042","name":"LUNAR NEW YEAR TOTE","item":"BAG","gender":"U","color":"P700","price":9000,"off_rate":0.3,"sale_price":6300},{"sku":"SPBLMW05101WB0013P218","itemno":"SPBLMW05101WB0013","name":"BALI FLOWERS TOTE","item":"BAG","gender":"W","color":"P218","price":14000,"off_rate":0.4,"sale_price":8400},{"sku":"LW05104WW01070143","itemno":"LW05104WW0107","name":"FOX HEAD LARGE TOTE","item":"BAG","gender":"W","color":"0143","price":27000,"off_rate":0.3,"sale_price":18900},{"sku":"PW05103OF00020316","itemno":"PW05103OF0002","name":"FOX HEAD LARGE TOTE","item":"BAG","gender":"W","color":"0316","price":37000,"off_rate":0.3,"sale_price":25900},{"sku":"PW05105OF00020316","itemno":"PW05105OF0002","name":"FOX HEAD SMALL TOTE","item":"BAG","gender":"W","color":"0316","price":28000,"off_rate":0.3,"sale_price":19600},{"sku":"QU530CLLR0001P652","itemno":"QU530CLLR0001","name":"LUNAR NEW YEAR FOX HEAD POUCH","item":"SMALL GOODS","gender":"U","color":"P652","price":18000,"off_rate":0.3,"sale_price":12600},{"sku":"OW04101LR0027P199","itemno":"OW04101LR0027","name":"SOFT LEATHER LOAFERS","item":"SHOES","gender":"W","color":"P199","price":68000,"off_rate":0.4,"sale_price":40800},{"sku":"S06PNIK000220537","itemno":"S06PNIK00022","name":"TIMI PYJAMA","item":"KIDS","gender":"KIDS","color":"0537","price":22000,"off_rate":0.3,"sale_price":15400},{"sku":"S06ZBEW000200536","itemno":"S06ZBEW00020","name":"NATEO STRIPED SHORTS","item":"KIDS","gender":"KIDS","color":"0536","price":26000,"off_rate":0.3,"sale_price":18200},{"sku":"S06XDRW000160536","itemno":"S06XDRW00016","name":"LYDIAH STRIPED POPLIN DRESS","item":"KIDS","gender":"KIDS","color":"0536","price":33000,"off_rate":0.3,"sale_price":23100},{"sku":"S06BBEW000180534","itemno":"S06BBEW00018","name":"ELZO GABARDINE WORKWEAR SHORTS","item":"KIDS","gender":"KIDS","color":"0534","price":28000,"off_rate":0.3,"sale_price":19600},{"sku":"S06GSKW000120534","itemno":"S06GSKW00012","name":"LAURINE GABARDINE SKIRT","item":"KIDS","gender":"KIDS","color":"0534","price":30000,"off_rate":0.3,"sale_price":21000},{"sku":"S06KJAW000010534","itemno":"S06KJAW00001","name":"LINUS GARBARDINE WORKWEAR JACKET","item":"KIDS","gender":"KIDS","color":"0534","price":55000,"off_rate":0.3,"sale_price":38500},{"sku":"S06KUNK000020537","itemno":"S06KUNK00002","name":"LIAN SOCKS","item":"KIDS","gender":"KIDS","color":"0537","price":9000,"off_rate":0.3,"sale_price":6300},{"sku":"SPBLMW06201WB00160003","itemno":"SPBLMW06201WB0016","name":"\u201cPALM BEACH\u201d SCARF","item":"SCARFS/BANDANA","gender":"W","color":"0003","price":16000,"off_rate":0.4,"sale_price":9600},{"sku":"SPBLMW06201WB00160004","itemno":"SPBLMW06201WB0016","name":"\u201cPALM BEACH\u201d SCARF","item":"SCARFS/BANDANA","gender":"W","color":"0004","price":16000,"off_rate":0.4,"sale_price":9600},{"sku":"MM04803LR00600484","itemno":"MM04803LR0060","name":"SORA RUNNERS","item":"SHOES","gender":"M","color":"0484","price":46000,"off_rate":0.2,"sale_price":36800},{"sku":"MM04804OF0004P181","itemno":"MM04804OF0004","name":"CHIRU TRAINERS","item":"SHOES","gender":"M","color":"P181","price":46000,"off_rate":0.2,"sale_price":36800},{"sku":"QU05101LC00450490","itemno":"QU05101LC0045","name":"MAISON KITSUNE PARIS LEATHER TOTE","item":"BAG","gender":"U","color":"0490","price":72000,"off_rate":0.2,"sale_price":57600},{"sku":"PM00108KJ70250447","itemno":"PM00108KJ7025","name":"FOX HEAD COMFORT TEE-SHIRT","item":"TEE","gender":"M","color":"0447","price":18500,"off_rate":0.2,"sale_price":14800},{"sku":"PM00108KJ70250450","itemno":"PM00108KJ7025","name":"FOX HEAD COMFORT TEE-SHIRT","item":"TEE","gender":"M","color":"0450","price":18500,"off_rate":0.2,"sale_price":14800},{"sku":"PM00109KJ01190479","itemno":"PM00109KJ0119","name":"FOX HEAD OVERSIZE TEE-SHIRT","item":"TEE","gender":"M","color":"0479","price":20000,"off_rate":0.2,"sale_price":16000},{"sku":"QM00117KJ70250418","itemno":"QM00117KJ7025","name":"DOUBLE FOX HEAD FADED COMFORT TEE-SHIRT","item":"TEE","gender":"M","color":"0418","price":21500,"off_rate":0.2,"sale_price":17200},{"sku":"PM00211KP00010448","itemno":"PM00211KP0001","name":"FOX HEAD OVERSIZE POLO","item":"POLO","gender":"M","color":"0448","price":24000,"off_rate":0.2,"sale_price":19200},{"sku":"PM00211KP00010479","itemno":"PM00211KP0001","name":"FOX HEAD OVERSIZE POLO","item":"POLO","gender":"M","color":"0479","price":24000,"off_rate":0.2,"sale_price":19200},{"sku":"QW00105KJ70340517","itemno":"QW00105KJ7034","name":"STRIPED BABY TEE-SHIRT","item":"TEE","gender":"W","color":"0517","price":19000,"off_rate":0.3,"sale_price":13300},{"sku":"OW00124KJ01340383","itemno":"OW00124KJ0134","name":"BABY FOX RIBBED FITTED TEE-SHIRT","item":"TEE","gender":"W","color":"0383","price":18000,"off_rate":0.2,"sale_price":14400},{"sku":"OW00124KJ01340477","itemno":"OW00124KJ0134","name":"BABY FOX RIBBED FITTED TEE-SHIRT","item":"TEE","gender":"W","color":"0477","price":18000,"off_rate":0.2,"sale_price":14400},{"sku":"OW00604KJ01340383","itemno":"OW00604KJ0134","name":"BABY FOX RIBBED TANK TOP","item":"TEE","gender":"W","color":"0383","price":15000,"off_rate":0.2,"sale_price":12000},{"sku":"OW00604KJ01340477","itemno":"OW00604KJ0134","name":"BABY FOX RIBBED TANK TOP","item":"TEE","gender":"W","color":"0477","price":15000,"off_rate":0.2,"sale_price":12000},{"sku":"PW00512KJ01340383","itemno":"PW00512KJ0134","name":"BABY FOX RIBBED CARDIGAN","item":"KNIT","gender":"W","color":"0383","price":25000,"off_rate":0.2,"sale_price":20000},{"sku":"QU05170LR00010479","itemno":"QU05170LR0001","name":"EDIE BAG","item":"BAG","gender":"U","color":"0479","price":80000,"off_rate":0.2,"sale_price":64000},{"sku":"QU05170OF00170495","itemno":"QU05170OF0017","name":"EDIE BAG","item":"BAG","gender":"U","color":"0495","price":80000,"off_rate":0.2,"sale_price":64000},{"sku":"S06BSHW000220536","itemno":"S06BSHW00022","name":"TANGUI STRIPED SHIRT","item":"TEE","gender":"KIDS","color":"0536","price":33000,"off_rate":0.2,"sale_price":26400},{"sku":"S06GDRW000450536","itemno":"S06GDRW00045","name":"LISSANDRA SHIRT DRESS","item":"DRESS","gender":"KIDS","color":"0536","price":44000,"off_rate":0.2,"sale_price":35200},{"sku":"S06GTSK000150538","itemno":"S06GTSK00015","name":"LULU TEE-SHIRT","item":"TEE","gender":"KIDS","color":"0538","price":17000,"off_rate":0.2,"sale_price":13600},{"sku":"S06KACW000020539","itemno":"S06KACW00002","name":"ARNOLD CAP","item":"CAP/HAT","gender":"KIDS","color":"0539","price":25000,"off_rate":0.2,"sale_price":20000},{"sku":"S06KBAW000020289","itemno":"S06KBAW00002","name":"LEROY BUMBAG","item":"BAG","gender":"KIDS","color":"0289","price":21000,"off_rate":0.2,"sale_price":16800},{"sku":"S06ZACW000020536","itemno":"S06ZACW00002","name":"GRIGRI STRIPED POPLIN HAT","item":"CAP/HAT","gender":"KIDS","color":"0536","price":18000,"off_rate":0.2,"sale_price":14400},{"sku":"MQBJR00KMBIS40413","itemno":"MQBJR00KMBIS4","name":"FOX HEAD KID JOG SHORTS","item":"PANTS","gender":"KIDS","color":"0413","price":12000,"off_rate":0.2,"sale_price":9600},{"sku":"MQBJR00KMBIS40477","itemno":"MQBJR00KMBIS4","name":"FOX HEAD KID JOG SHORTS","item":"PANTS","gender":"KIDS","color":"0477","price":12000,"off_rate":0.2,"sale_price":9600},{"sku":"MQUJH00KMBIS40477","itemno":"MQUJH00KMBIS4","name":"FOX HEAD KID HOODIE","item":"SWEAT","gender":"KIDS","color":"0477","price":17500,"off_rate":0.2,"sale_price":14000},{"sku":"MQUJL00KP00030477","itemno":"MQUJL00KP0003","name":"FOX HEAD KID POLO","item":"POLO","gender":"KIDS","color":"0477","price":14500,"off_rate":0.2,"sale_price":11600},{"sku":"MQUJL00KP00030580","itemno":"MQUJL00KP0003","name":"FOX HEAD KID POLO","item":"POLO","gender":"KIDS","color":"0580","price":14500,"off_rate":0.2,"sale_price":11600},{"sku":"MQUJS00KMBIS40580","itemno":"MQUJS00KMBIS4","name":"FOX HEAD KID SWEATSHIRT","item":"SWEAT","gender":"KIDS","color":"0580","price":16000,"off_rate":0.2,"sale_price":12800},{"sku":"MQUJT00KJBIT20477","itemno":"MQUJT00KJBIT2","name":"FOX HEAD KID TEE-SHIRT","item":"TEE","gender":"KIDS","color":"0477","price":11000,"off_rate":0.2,"sale_price":8800},{"sku":"MQUJT00KJBIT20580","itemno":"MQUJT00KJBIT2","name":"FOX HEAD KID TEE-SHIRT","item":"TEE","gender":"KIDS","color":"0580","price":11000,"off_rate":0.2,"sale_price":8800},{"sku":"MQUJT01KJBIT2P100","itemno":"MQUJT01KJBIT2","name":"DRESSED KIDDY FOX KID TEE-SHIRT","item":"TEE","gender":"KIDS","color":"P100","price":12500,"off_rate":0.2,"sale_price":10000},{"sku":"MQUKS00KT12150580","itemno":"MQUKS00KT1215","name":"FOX HEAD KID SOCKS","item":"SOCKS","gender":"KIDS","color":"0580","price":3500,"off_rate":0.2,"sale_price":2800},{"sku":"MQUWH00WW00960477","itemno":"MQUWH00WW0096","name":"FOX HEAD KID 6P CAP","item":"CAP/HAT","gender":"KIDS","color":"0477","price":8600,"off_rate":0.2,"sale_price":6880},{"sku":"MQUWH00WW00960580","itemno":"MQUWH00WW0096","name":"FOX HEAD KID 6P CAP","item":"CAP/HAT","gender":"KIDS","color":"0580","price":8600,"off_rate":0.2,"sale_price":6880},{"sku":"QM04100OF0026P199","itemno":"QM04100OF0026","name":"MESH SANDALS","item":"SHOES","gender":"M","color":"P199","price":45000,"off_rate":0.3,"sale_price":31500},{"sku":"PM06100WW00960428","itemno":"PM06100WW0096","name":"FOX HEAD CAP","item":"CAP/HAT","gender":"M","color":"0428","price":15000,"off_rate":0.2,"sale_price":12000},{"sku":"QU06102WB0026P199","itemno":"QU06102WB0026","name":"DRESSED FOX CAP","item":"CAP/HAT","gender":"U","color":"P199","price":16000,"off_rate":0.35,"sale_price":10400},{"sku":"QU06104WB00260063","itemno":"QU06104WB0026","name":"DRESSED FOX CAP","item":"CAP/HAT","gender":"U","color":"0063","price":16000,"off_rate":0.35,"sale_price":10400},{"sku":"QU05104WB00500502","itemno":"QU05104WB0050","name":"MAISON KITSUNE HANDWRITING LARGE TOTE","item":"BAG","gender":"U","color":"0502","price":28000,"off_rate":0.2,"sale_price":22400},{"sku":"QU05110WW9042P700","itemno":"QU05110WW9042","name":"GALLERY FOX TOTE","item":"BAG","gender":"U","color":"P700","price":9000,"off_rate":0.2,"sale_price":7200},{"sku":"QU05117WW90420425","itemno":"QU05117WW9042","name":"PARISIAN MAP  TOTE","item":"BAG","gender":"U","color":"0425","price":8100,"off_rate":0.2,"sale_price":6480},{"sku":"QU05500LR0001P199","itemno":"QU05500LR0001","name":"LEATHER BELT","item":"LEATHER GOODS","gender":"U","color":"P199","price":25000,"off_rate":0.2,"sale_price":20000},{"sku":"QU05501OF00190428","itemno":"QU05501OF0019","name":"RAFFIA BELT","item":"SMALL GOODS","gender":"U","color":"0428","price":25000,"off_rate":0.2,"sale_price":20000},{"sku":"QU06105OF00220450","itemno":"QU06105OF0022","name":"GALLERY FOX NYLON CAP","item":"CAP/HAT","gender":"U","color":"0450","price":16000,"off_rate":0.2,"sale_price":12800},{"sku":"QU06200WB00510425","itemno":"QU06200WB0051","name":"PARISIAN MAP SILK SCARF","item":"SCARFS/BANDANA","gender":"U","color":"0425","price":25000,"off_rate":0.2,"sale_price":20000},{"sku":"QU06203OF00200500","itemno":"QU06203OF0020","name":"STRIPED TOWEL","item":"SMALL GOODS","gender":"U","color":"0500","price":20000,"off_rate":0.2,"sale_price":16000},{"sku":"QU06204OF00200499","itemno":"QU06204OF0020","name":"MAISON KITSUNE HANDWRITING TOWEL","item":"SMALL GOODS","gender":"U","color":"0499","price":20000,"off_rate":0.35,"sale_price":13000},{"sku":"QU06900LR0072P199","itemno":"QU06900LR0072","name":"MIRROR CHARM","item":"SMALL GOODS","gender":"U","color":"P199","price":13000,"off_rate":0.2,"sale_price":10400},{"sku":"QM00114KJ01190451","itemno":"QM00114KJ0119","name":"FOX CUB OVERSIZE TEE-SHIRT","item":"TEE","gender":"M","color":"0451","price":25000,"off_rate":0.3,"sale_price":17500},{"sku":"QM00600KA0033P100","itemno":"QM00600KA0033","name":"MAISON KITSUNÉ PARIS RIBBED TANK TOP","item":"TEE","gender":"M","color":"P100","price":15000,"off_rate":0.2,"sale_price":12000},{"sku":"QM00600KA0033P199","itemno":"QM00600KA0033","name":"MAISON KITSUNÉ PARIS RIBBED TANK TOP","item":"TEE","gender":"M","color":"P199","price":15000,"off_rate":0.2,"sale_price":12000},{"sku":"QM00200KJ70390449","itemno":"QM00200KJ7039","name":"LONG SLEEVE OVERSIZE OPEN-PLACKET POLO","item":"POLO","gender":"M","color":"0449","price":33000,"off_rate":0.3,"sale_price":23100},{"sku":"PM00305KM03410450","itemno":"PM00305KM0341","name":"FOX HEAD COMFORT HALF ZIP SWEATSHIRT","item":"SWEAT","gender":"M","color":"0450","price":37000,"off_rate":0.2,"sale_price":29600},{"sku":"PM00306KM03400479","itemno":"PM00306KM0340","name":"FOX HEAD OVERSIZE SWEATSHIRT","item":"SWEAT","gender":"M","color":"0479","price":36000,"off_rate":0.2,"sale_price":28800},{"sku":"PM00703KM03410447","itemno":"PM00703KM0341","name":"FOX HEAD COMFORT HOODIE","item":"SWEAT","gender":"M","color":"0447","price":37000,"off_rate":0.2,"sale_price":29600},{"sku":"QM00307KM03440451","itemno":"QM00307KM0344","name":"LINEN COTTON OVERSIZE SWEATSHIRT","item":"SWEAT","gender":"M","color":"0451","price":46000,"off_rate":0.3,"sale_price":32200},{"sku":"QM00309KM03410422","itemno":"QM00309KM0341","name":"DRESSED FOX COMFORT SWEATSHIRT","item":"SWEAT","gender":"M","color":"0422","price":32000,"off_rate":0.2,"sale_price":25600},{"sku":"QM00313KM03410418","itemno":"QM00313KM0341","name":"DOUBLE FOX HEAD FADED COMFORT SWEATSHIRT","item":"SWEAT","gender":"M","color":"0418","price":35000,"off_rate":0.2,"sale_price":28000},{"sku":"QM02151KM03410450","itemno":"QM02151KM0341","name":"FOX HEAD ZIPPED COMFORT SWEATSHIRT","item":"SWEAT","gender":"M","color":"0450","price":43000,"off_rate":0.2,"sale_price":34400},{"sku":"QM00500KT1181H150","itemno":"QM00500KT1181","name":"FOX HEAD FINE MERINO CARDIGAN","item":"KNIT","gender":"M","color":"H150","price":45000,"off_rate":0.2,"sale_price":36000},{"sku":"QM00804KT1181H150","itemno":"QM00804KT1181","name":"FOX HEAD FINE MERINO SHORT SLEEVE JUMPER","item":"KNIT","gender":"M","color":"H150","price":40000,"off_rate":0.2,"sale_price":32000},{"sku":"QM00420WC0026P100","itemno":"QM00420WC0026","name":"MAISON KITSUNE HANDWRITING CASUAL SHIRT","item":"SHIRT","gender":"M","color":"P100","price":31500,"off_rate":0.2,"sale_price":25200},{"sku":"QM00421WC50890425","itemno":"QM00421WC5089","name":"TONAL FOX HEAD CASUAL SHIRT","item":"SHIRT","gender":"M","color":"0425","price":37000,"off_rate":0.2,"sale_price":29600},{"sku":"QM00424WC50920478","itemno":"QM00424WC5092","name":"MAISON KITSUNE HANDWRITING CASUAL SHIRT","item":"SHIRT","gender":"M","color":"0478","price":40000,"off_rate":0.2,"sale_price":32000},{"sku":"QM02101WD4023P471","itemno":"QM02101WD4023","name":"DENIM TRUCKER JACKET","item":"JACKET","gender":"M","color":"P471","price":46000,"off_rate":0.3,"sale_price":32200},{"sku":"QM02204WW90970478","itemno":"QM02204WW9097","name":"LIGHT PARKA","item":"BLUSON/COAT","gender":"M","color":"0478","price":130000,"off_rate":0.35,"sale_price":84500},{"sku":"QW00102KJ01190431","itemno":"QW00102KJ0119","name":"FOX CUB COMFORT TEE-SHIRT","item":"TEE","gender":"W","color":"0431","price":24000,"off_rate":0.3,"sale_price":16800},{"sku":"QW00104KJ70260063","itemno":"QW00104KJ7026","name":"GALLERY FOX REGULAR TEE-SHIRT","item":"TEE","gender":"W","color":"0063","price":20000,"off_rate":0.2,"sale_price":16000},{"sku":"QW00108KJ70350383","itemno":"QW00108KJ7035","name":"GALERIE DE MONTPENSIER FITTED TEE-SHIRT","item":"TEE","gender":"W","color":"0383","price":20000,"off_rate":0.2,"sale_price":16000},{"sku":"QW00111KA00350383","itemno":"QW00111KA0035","name":"TEXTURED TEE-SHIRT","item":"TEE","gender":"W","color":"0383","price":22000,"off_rate":0.3,"sale_price":15400},{"sku":"QW00111KA00350413","itemno":"QW00111KA0035","name":"TEXTURED TEE-SHIRT","item":"TEE","gender":"W","color":"0413","price":22000,"off_rate":0.35,"sale_price":14300},{"sku":"PW00115KJ70260450","itemno":"PW00115KJ7026","name":"BABY FOX REGULAR TEE-SHIRT","item":"TEE","gender":"W","color":"0450","price":17000,"off_rate":0.2,"sale_price":13600},{"sku":"QW00604KA0034P199","itemno":"QW00604KA0034","name":"SOFT FINE RIB ASYMMETRIC TOP","item":"TEE","gender":"W","color":"P199","price":20000,"off_rate":0.35,"sale_price":13000},{"sku":"QW00306KM03410451","itemno":"QW00306KM0341","name":"DRESSED FOX COMFORT SWEATSHIRT","item":"SWEAT","gender":"W","color":"0451","price":35000,"off_rate":0.2,"sale_price":28000},{"sku":"QW02150KM03420503","itemno":"QW02150KM0342","name":"COMFORT ZIPPED LIGHT FLEECE HOODIE","item":"SWEAT","gender":"W","color":"0503","price":40000,"off_rate":0.3,"sale_price":28000},{"sku":"PW00801KT11810383","itemno":"PW00801KT1181","name":"BABY FOX MERINO REGULAR JUMPER","item":"KNIT","gender":"W","color":"0383","price":41000,"off_rate":0.2,"sale_price":32800},{"sku":"PW00801KT11810429","itemno":"PW00801KT1181","name":"BABY FOX MERINO REGULAR JUMPER","item":"KNIT","gender":"W","color":"0429","price":41000,"off_rate":0.2,"sale_price":32800},{"sku":"QW00506KT1196H120","itemno":"QW00506KT1196","name":"SEE-THROUGH LONG CARDIGAN","item":"KNIT","gender":"W","color":"H120","price":45000,"off_rate":0.3,"sale_price":31500},{"sku":"QW00609KT1196H120","itemno":"QW00609KT1196","name":"SEE-THROUGH TEE-SHIRT","item":"KNIT","gender":"W","color":"H120","price":38000,"off_rate":0.35,"sale_price":24700},{"sku":"QW00601KJ70380454","itemno":"QW00601KJ7038","name":"LYOCELL TOP","item":"TEE","gender":"W","color":"0454","price":19000,"off_rate":0.35,"sale_price":12350},{"sku":"QW00605KJ70380454","itemno":"QW00605KJ7038","name":"LONG SLEEVE LYOCELL TOP","item":"TEE","gender":"W","color":"0454","price":27000,"off_rate":0.35,"sale_price":17550},{"sku":"QW00551KA0034P199","itemno":"QW00551KA0034","name":"SOFT FINE RIB LONG SKIRT","item":"SKIRT","gender":"W","color":"P199","price":25000,"off_rate":0.35,"sale_price":16250},{"sku":"QW01101WD40240443","itemno":"QW01101WD4024","name":"STRAIGHT JEANS","item":"PANTS","gender":"W","color":"0443","price":37000,"off_rate":0.35,"sale_price":24050},{"sku":"QW01111WF4066P204","itemno":"QW01111WF4066","name":"TAILORED PLEATED PANTS","item":"PANTS","gender":"W","color":"P204","price":46000,"off_rate":0.2,"sale_price":36800},{"sku":"QW01112WW91060428","itemno":"QW01112WW9106","name":"PARACHUTE PANTS","item":"PANTS","gender":"W","color":"0428","price":45000,"off_rate":0.3,"sale_price":31500},{"sku":"QW01400KA00350413","itemno":"QW01400KA0035","name":"TEXTURED REGULAR SHORT","item":"SHORTS","gender":"W","color":"0413","price":19000,"off_rate":0.2,"sale_price":15200},{"sku":"QW01401WD40240443","itemno":"QW01401WD4024","name":"DENIM SHORTS","item":"SHORTS","gender":"W","color":"0443","price":30000,"off_rate":0.2,"sale_price":24000},{"sku":"QW01601WW9099P199","itemno":"QW01601WW9099","name":"MIDI SHIRT DRESS","item":"DRESS","gender":"W","color":"P199","price":53500,"off_rate":0.3,"sale_price":37450},{"sku":"QW01602WW90830432","itemno":"QW01602WW9083","name":"LINEN POLO MINI DRESS","item":"DRESS","gender":"W","color":"0432","price":45000,"off_rate":0.2,"sale_price":36000},{"sku":"QW01603WF4062P199","itemno":"QW01603WF4062","name":"FLUID LONG DRESS","item":"DRESS","gender":"W","color":"P199","price":54000,"off_rate":0.35,"sale_price":35100},{"sku":"QW01605WF4067P100","itemno":"QW01605WF4067","name":"LONG TANK DRESS","item":"DRESS","gender":"W","color":"P100","price":75000,"off_rate":0.2,"sale_price":60000},{"sku":"QW01652KA0034P199","itemno":"QW01652KA0034","name":"SOFT FINE RIB RACER BACK DRESS","item":"DRESS","gender":"W","color":"P199","price":34000,"off_rate":0.35,"sale_price":22100},{"sku":"QW02102WD40240443","itemno":"QW02102WD4024","name":"DENIM BOXY TRUCKER JACKET","item":"JACKET","gender":"W","color":"0443","price":58000,"off_rate":0.2,"sale_price":46400},{"sku":"QW02201WQ40850478","itemno":"QW02201WQ4085","name":"WRAP COAT","item":"BLUSON/COAT","gender":"W","color":"0478","price":100000,"off_rate":0.35,"sale_price":65000},{"sku":"QW02207WD40210488","itemno":"QW02207WD4021","name":"DENIM BARN JACKET","item":"JACKET","gender":"W","color":"0488","price":65000,"off_rate":0.3,"sale_price":45500},{"sku":"PW06400KT11240063","itemno":"PW06400KT1124","name":"BABY FOX SOCKS","item":"SOCKS","gender":"W","color":"0063","price":5000,"off_rate":0.2,"sale_price":4000},{"sku":"QW04100LL00020432","itemno":"QW04100LL0002","name":"LEATHER SANDAL","item":"SHOES","gender":"W","color":"0432","price":45000,"off_rate":0.2,"sale_price":36000},{"sku":"QW04102OF0025P199","itemno":"QW04102OF0025","name":"MESH BALLERINA","item":"SHOES","gender":"W","color":"P199","price":40000,"off_rate":0.35,"sale_price":26000},{"sku":"OM00122KJ0119P100","itemno":"OM00122KJ0119","name":"MAISON KITSUNE EMBROIDERY OVERSIZE TEE-SHIRT","item":"TEE","gender":"M","color":"P100","price":20000,"off_rate":0.3,"sale_price":14000}];
+
+// Build lookup index: itemnno → array of records
+const byItemno = {};
+const bySku = {};
+SALE_DATA.forEach(r => {
+  bySku[r.sku.toUpperCase()] = r;
+  if (!byItemno[r.itemno.toUpperCase()]) byItemno[r.itemno.toUpperCase()] = [];
+  byItemno[r.itemno.toUpperCase()].push(r);
+});
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let stream = null;
+let cameraActive = false;
+
+// ── CAMERA ────────────────────────────────────────────────────────────────────
+async function startCamera() {
+  try {
+    if (stream) { stream.getTracks().forEach(t => t.stop()); }
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 960 } }
+    });
+    const video = document.getElementById('videoEl');
+    video.srcObject = stream;
+    await video.play();
+
+    document.getElementById('cameraPlaceholder').style.display = 'none';
+    document.getElementById('scanOverlay').style.display = 'block';
+    document.getElementById('scanLine').style.display = 'block';
+    document.getElementById('btnCapture').disabled = false;
+    document.getElementById('btnStartCamera').textContent = '🔄 カメラ再起動';
+    cameraActive = true;
+    setStatus('タグが画面内に収まるように近づけて「タグを読み取る」を押してください');
+  } catch(e) {
+    setStatus('カメラへのアクセスが拒否されました。下の画像選択からお試しください', 'error');
+  }
+}
+
+async function captureAndScan() {
+  if (!cameraActive) return;
+  const video = document.getElementById('videoEl');
+  const canvas = document.getElementById('canvasEl');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+
+  const base64 = canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+  await analyzeImage(base64);
+}
+
+function handleFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const base64 = e.target.result.split(',')[1];
+
+    // Show preview
+    const video = document.getElementById('videoEl');
+    video.style.display = 'none';
+    const preview = document.getElementById('canvasEl');
+    preview.style.display = 'block';
+    preview.style.width = '100%';
+    preview.style.height = '100%';
+    preview.style.objectFit = 'cover';
+
+    const img = new Image();
+    img.onload = () => {
+      preview.width = img.width; preview.height = img.height;
+      preview.getContext('2d').drawImage(img, 0, 0);
+    };
+    img.src = e.target.result;
+
+    document.getElementById('cameraPlaceholder').style.display = 'none';
+    document.getElementById('scanOverlay').style.display = 'block';
+    await analyzeImage(base64);
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+// ── AI ANALYSIS ───────────────────────────────────────────────────────────────
+async function analyzeImage(base64) {
+  setStatus('AIが品番を読み取り中…', 'processing');
+  showScanningBadge(true);
+  hideResults();
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
+            { type: 'text', text: `This is a Maison Kitsuné product tag. Extract the product number (品番) which appears after "No." on the tag. The product number is typically 12-18 alphanumeric characters like "QM01108WQ4081". Return ONLY the product number itself, nothing else. If you cannot find a product number, return "NOT_FOUND".` }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text?.trim() || '';
+
+    showScanningBadge(false);
+
+    if (text === 'NOT_FOUND' || !text) {
+      setStatus('品番が読み取れませんでした。タグに近づいて再試行してください', 'error');
+      return;
+    }
+
+    // Clean up the result
+    const itemno = text.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    setStatus(`読み取り完了: ${itemno}`);
+    document.getElementById('manualInput').value = itemno;
+    lookup(itemno);
+
+  } catch(e) {
+    showScanningBadge(false);
+    setStatus('エラーが発生しました。手動で品番を入力してください', 'error');
+  }
+}
+
+// ── LOOKUP ────────────────────────────────────────────────────────────────────
+function manualSearch() {
+  const val = document.getElementById('manualInput').value.trim().toUpperCase().replace(/[^A-Za-z0-9]/g, '');
+  if (!val) return;
+  lookup(val);
+}
+
+function lookup(query) {
+  hideResults();
+  const q = query.toUpperCase();
+
+  // 1. Exact SKU match
+  if (bySku[q]) {
+    showResult(bySku[q]);
+    return;
+  }
+
+  // 2. Exact ITEMNO match (may return multiple colors)
+  if (byItemno[q]) {
+    const matches = byItemno[q];
+    if (matches.length === 1) {
+      showResult(matches[0]);
+    } else {
+      showMultiResults(matches, q);
+    }
+    return;
+  }
+
+  // 3. Partial match in ITEMNO keys
+  const partialKeys = Object.keys(byItemno).filter(k => k.includes(q) || q.includes(k));
+  if (partialKeys.length > 0) {
+    const allMatches = partialKeys.flatMap(k => byItemno[k]);
+    if (allMatches.length === 1) {
+      showResult(allMatches[0]);
+    } else {
+      showMultiResults(allMatches, q);
+    }
+    return;
+  }
+
+  // 4. Not found
+  showNotFound(q);
+}
+
+// ── DISPLAY ───────────────────────────────────────────────────────────────────
+function showResult(item) {
+  const pct = Math.round(item.off_rate * 100);
+  const genderLabel = { M: 'MEN', W: 'WOMEN', U: 'UNISEX', KIDS: 'KIDS' }[item.gender] || item.gender;
+  const price = item.price.toLocaleString();
+  const salePrice = item.sale_price.toLocaleString();
+
+  document.getElementById('resultCard').innerHTML = `
+    <div class="result-header">
+      <div class="result-item-info">
+        <div class="result-item-type">${item.item}</div>
+        <div class="result-item-name">${item.name}</div>
+      </div>
+      <div class="result-gender-badge">${genderLabel}</div>
+    </div>
+    <div class="result-body">
+      <div class="off-rate-display">
+        <div class="off-rate-number">${pct}</div>
+        <div class="off-rate-unit">%</div>
+        <div class="off-rate-label">OFF</div>
+      </div>
+      <div class="price-row">
+        <div class="price-cell">
+          <div class="price-cell-label">通常価格</div>
+          <div class="price-cell-value original">¥${price}</div>
+        </div>
+        <div class="price-cell">
+          <div class="price-cell-label">セール価格</div>
+          <div class="price-cell-value sale">¥${salePrice}</div>
+        </div>
+      </div>
+      <div class="result-meta">
+        <div class="meta-tag">ITEMNO <span>${item.itemno}</span></div>
+        <div class="meta-tag">COL <span>${item.color}</span></div>
+      </div>
+    </div>
+  `;
+  document.getElementById('resultCard').classList.add('visible');
+}
+
+function showMultiResults(items, query) {
+  const container = document.getElementById('multiResults');
+  const uniqueItemno = [...new Set(items.map(i => i.itemno))];
+
+  // Group by itemno, pick representative
+  const groups = uniqueItemno.map(ino => {
+    const group = items.filter(i => i.itemno === ino);
+    const rep = group[0];
+    const rate = Math.round(rep.off_rate * 100);
+    return { rep, group, rate };
+  });
+
+  container.innerHTML = `
+    <div class="multi-header">${groups.length}件のアイテムが見つかりました — タップで詳細を表示</div>
+    ${groups.map(({rep, rate}) => `
+      <div class="multi-item" onclick="showResult(${JSON.stringify(rep).replace(/"/g, '&quot;')})">
+        <div class="multi-item-left">
+          <div class="multi-item-name">${rep.name}</div>
+          <div class="multi-item-meta">${rep.item} · ${rep.itemno}</div>
+        </div>
+        <div class="multi-item-off">${rate}%</div>
+      </div>
+    `).join('')}
+  `;
+  container.classList.add('visible');
+}
+
+function showNotFound(query) {
+  document.getElementById('resultCard').innerHTML = `
+    <div class="result-not-found">
+      <div class="nf-icon">—</div>
+      <div class="nf-title">SALEリスト対象外</div>
+      <div class="nf-sub">${query}<br>はSALE対象アイテムではありません</div>
+    </div>
+  `;
+  document.getElementById('resultCard').classList.add('visible');
+}
+
+function hideResults() {
+  document.getElementById('resultCard').classList.remove('visible');
+  document.getElementById('resultCard').innerHTML = '';
+  document.getElementById('multiResults').classList.remove('visible');
+  document.getElementById('multiResults').innerHTML = '';
+}
+
+function setStatus(msg, type = '') {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.className = 'status' + (type ? ' ' + type : '');
+}
+
+function showScanningBadge(show) {
+  document.getElementById('scanningBadge').style.display = show ? 'block' : 'none';
+}
+
+// Tap camera zone to start
+document.getElementById('cameraZone').addEventListener('click', function(e) {
+  if (!cameraActive && !e.target.closest('button')) startCamera();
+});
+</script>
+</body>
+</html>
